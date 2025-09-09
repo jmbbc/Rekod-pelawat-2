@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8">
+  <title>Rekod Kedatangan Pelawat</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    .form-section, .rekod-section { margin-bottom: 30px; }
+    input, button { margin: 5px 0; padding: 8px; width: 100%; box-sizing: border-box; }
+    ul { padding-left: 20px; }
+  </style>
+</head>
+<body>
+
+  <h2>📋 Borang Kedatangan Pelawat</h2>
+  <div class="form-section">
+    <form id="visitorForm">
+      <input type="text" name="unit" placeholder="Nombor Unit" required>
+      <input type="text" name="vehicle" placeholder="Nombor Kenderaan" required>
+      <input type="date" name="checkin" required>
+      <input type="date" name="checkout" required>
+      <button type="submit">Hantar Rekod</button>
+    </form>
+  </div>
+
+  <div class="rekod-section">
+    <h3>🚗 Rekod Kenderaan Hari Ini</h3>
+    <ul id="todayRecords">Memuatkan...</ul>
+  </div>
+
+  <script>
+    // Gantikan dengan ID sebenar dari Google Form anda
+    const formURL = "https://docs.google.com/forms/d/e/1FAIpQLSd5XPqtRoRSxd3hfv2P0Lf-ePnYxdvrW3nA_VEj9pSAFgd_Og/formResponse";
+    const entry = {
+      unit: "entry.595247252",
+      vehicle: "entry.510665074",
+      checkin: "entry.542482373",
+      checkout: "entry.969975"
+    };
+
+    $("#visitorForm").submit(function(e) {
+      e.preventDefault();
+
+      const checkinDate = $("input[name='checkin']").val().split("-");
+      const checkoutDate = $("input[name='checkout']").val().split("-");
+
+      const data = {
+        [entry.unit]: $("input[name='unit']").val(),
+        [entry.vehicle]: $("input[name='vehicle']").val(),
+        [`${entry.checkin}_year`]: checkinDate[0],
+        [`${entry.checkin}_month`]: checkinDate[1],
+        [`${entry.checkin}_day`]: checkinDate[2],
+        [`${entry.checkout}_year`]: checkoutDate[0],
+        [`${entry.checkout}_month`]: checkoutDate[1],
+        [`${entry.checkout}_day`]: checkoutDate[2]
+      };
+
+      $.ajax({
+        url: formURL,
+        type: "POST",
+        data: data,
+        dataType: "xml",
+        statusCode: {
+          0: function () {
+            alert("✅ Rekod berjaya dihantar!");
+            const msg = `🚪 Pelawat masuk:\nUnit: ${data[entry.unit]}\nKenderaan: ${data[entry.vehicle]}\nTarikh Masuk: ${checkinDate.join("-")}`;
+            const waLink = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+            window.open(waLink, "_blank");
+            $("#visitorForm")[0].reset();
+          },
+          200: function () {
+            alert("✅ Rekod berjaya dihantar!");
+          }
+        }
+      });
+    });
+
+    // Papar rekod hari ini dari Google Sheet (CSV)
+    const sheetURL = "https://docs.google.com/spreadsheets/d/YOUR_SHEET_ID/pub?output=csv";
+
+    fetch(sheetURL)
+      .then(res => res.text())
+      .then(csv => {
+        const rows = csv.split("\n").slice(1); // skip header
+        const today = new Date().toISOString().split("T")[0];
+        const list = rows.filter(row => row.includes(today)).map(row => {
+          const cols = row.split(",");
+          return `<li>${cols[1]} - ${cols[2]} (${cols[3]})</li>`;
+        });
+        $("#todayRecords").html(list.length ? list.join("") : "<li>Tiada rekod hari ini.</li>");
+      });
+  </script>
+
+</body>
+</html>
